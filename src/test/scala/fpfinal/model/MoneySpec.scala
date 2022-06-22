@@ -51,6 +51,7 @@ class MoneySpec extends FpFinalSpec {
   }
 
   // TODO #5: Add the missing Order typeclass tests
+  checkAll("Order[Money]", OrderTests[Money].order)
   checkAll("Eq[Money]", EqTests[Money].eqv)
   checkAll("Monoid[Money]", MonoidTests[Money].monoid)
 }

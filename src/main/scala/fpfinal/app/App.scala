@@ -84,7 +84,10 @@ object App {
       *
       * The app should be able to continue normal execution afterwards.
       */
-    def executeCommandWithRecovery: AppOp[Boolean] = ???
+    def executeCommandWithRecovery: AppOp[Boolean] = for {
+      env <- readEnv
+      isSuccessful <- ME.handleErrorWith(executeCommand)(s => env.console.printLine(s).map(_ => false).toAppOp)
+    } yield isSuccessful
 
     ME.iterateUntil(executeCommandWithRecovery)(identity).void
   }

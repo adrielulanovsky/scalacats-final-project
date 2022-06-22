@@ -20,7 +20,19 @@ trait Generators {
     * care of only producing valid values (check out
     * the constraints in Person.create) .
     */
-  implicit val personArb: Arbitrary[Person] = ???
+
+  /*
+  *     * - The name should not be empty
+  * - The name should only contain letters
+  * - The name should be at most 32 chars long
+
+  * */
+  implicit val personArb: Arbitrary[Person] = Arbitrary {
+    for {
+      nameSize <- Gen.choose(1, 32)
+      name <- Gen.stringOfN(nameSize, Gen.alphaChar)
+    } yield Person.unsafeCreate(name)
+  }
 
   implicit val moneyArb: Arbitrary[Money] = Arbitrary {
     Gen.choose(1, 1e9.toInt).map(Money.unsafeCreate)
@@ -30,10 +42,24 @@ trait Generators {
     * TODO #3b: Use the provided arbitraries and the Expense.unsafeCreate method
     * to create an instance of Arbitrary[Expense]
     */
+
+    /*
+    *     * - The participants list should not be empty
+    * - The payer should not be included in the participants
+
+    * */
   implicit def expenseArb(implicit
       arbPerson: Arbitrary[Person],
       arbMoney: Arbitrary[Money]
-  ): Arbitrary[Expense] = ???
+  ): Arbitrary[Expense] = Arbitrary {
+      for {
+        payer <- arbPerson.arbitrary
+        amount <- arbMoney.arbitrary
+        participants <- Gen.nonEmptyListOf(arbPerson.arbitrary)
+        participantsWithoutPayer = participants.filterNot(_ === payer)
+      } yield Expense.unsafeCreate(payer, amount, participantsWithoutPayer)
+
+  }
 
   implicit val payeeDebtArb: Arbitrary[DebtByPayee] = Arbitrary {
     Gen
@@ -101,7 +127,12 @@ trait Generators {
   implicit def personOpArb[A](implicit
       arbA: Arbitrary[A],
       arbPersonState: Arbitrary[PersonState]
-  ): Arbitrary[PersonOp[A]] = ???
+  ): Arbitrary[PersonOp[A]] = Arbitrary {
+    for {
+      a <- arbA.arbitrary
+      personState <- arbPersonState.arbitrary
+    } yield {State[PersonState, A]{ _ => (personState, a) }}
+  }
 
   implicit def isValidArb[A](implicit
       arbA: Arbitrary[A]

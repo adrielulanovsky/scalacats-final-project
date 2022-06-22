@@ -4,6 +4,7 @@ import cats._
 import cats.data._
 import cats.implicits._
 import fpfinal.app.Configuration.IsValid
+import fpfinal.common.Validations
 import fpfinal.common.Validations._
 
 import scala.collection.immutable.SortedSet
@@ -38,7 +39,7 @@ class Expense private (
     * For simplicity we don't care about losing cents. For example, dividing 1 dollar
     * among 3 participants should yield 33 cents of debt for each participant.
     */
-  def amountByParticipant: Money = ???
+  def amountByParticipant: Money = amount.divideBy(participants.length + 1).get
 }
 
 object Expense {
@@ -69,7 +70,11 @@ object Expense {
       payer: Person,
       amount: Money,
       participants: List[Person]
-  )(implicit eqPerson: Eq[Person]): IsValid[Expense] = ???
+  )(implicit eqPerson: Eq[Person]): IsValid[Expense] = {
+    val v1 = Validations.nonEmptySet(participants)
+    val v2 = Validated.condNec(participants.forall(p => p =!= payer), payer, "The payer should not be included in the participants")
+    (v1, v2).mapN((nonEmptyParticipants, _) => new Expense(payer, amount, nonEmptyParticipants))
+  }
 
   /**
     * TODO #9: Implement an Eq instance by comparing every field,
@@ -80,12 +85,14 @@ object Expense {
     eqPerson: Eq[Person],
     eqMoney: Eq[Money],
     eqParticipants: Eq[NonEmptySet[Person]]
-  ): Eq[Expense] = ???
+  ): Eq[Expense] = Eq.and(Eq.by(_.payer), Eq.and(Eq.by(_.amount), Eq.by(_.participants)))
 
   /**
     * TODO #8: Implement a Show instance with the following format:
     *
     * Expense[Payer=Martin,Amount=$10.00,Participants=Bob,Susan]
     */
-  implicit val showExpense: Show[Expense] = ???
+  implicit val showExpense: Show[Expense] = Show.show(expense =>
+    s"Expense[Payer=${expense.payer},Amount=${expense.amount},Participants=${expense.participants.mkString_(",")}]"
+  )
 }

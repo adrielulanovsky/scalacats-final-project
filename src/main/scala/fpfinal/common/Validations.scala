@@ -1,10 +1,14 @@
 package fpfinal.common
 
 import cats.Order
+import cats.data.Validated.Valid
 import cats.data.{NonEmptyChain, NonEmptySet, Validated}
 import fpfinal.app.Configuration.IsValid
+import cats._
+import cats.implicits._
 
 import scala.collection.immutable.SortedSet
+import scala.util.Try
 
 /**
  * Set of simple validations that can be reused across the different models.
@@ -14,13 +18,13 @@ object Validations {
     * TODO #1: Check that this String's length does not exceed the provided limit.
     */
   def maxLength(s: String, n: Int): IsValid[String] =
-    ???
+    Validated.condNec(s.length <= n, s, s"String exceeds ${n} characters")
 
   /**
     * TODO #2: Turn this String into a validated double
     */
   def double(s: String): IsValid[Double] =
-    ???
+    Try(s.toDouble).toEither.leftMap(e => s"invalid Double: ${e.toString}").toValidatedNec
 
   /**
    * Validates that a Double is >= 0

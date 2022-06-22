@@ -4,6 +4,7 @@ import cats._
 import cats.implicits._
 import fpfinal.app.Configuration.{AppOp, IsValid, SuccessMsg, readEnv}
 import fpfinal.app.Syntax._
+import fpfinal.common.Validations
 import fpfinal.common.Validations._
 import fpfinal.model.{Expense, Money, Person}
 
@@ -82,8 +83,18 @@ object AddExpenseCommand extends Command {
       *
       * Extra points: implement it using ME.tailRecM
       */
-    def readParticipants(): AppOp[List[String]] = ???
+    def readParticipant(): AppOp[String] = for {
+      env <- readEnv
+      name <- env.console.readLine("Enter participant's name: ").toAppOp
+    } yield name
 
+    def readParticipants(): AppOp[List[String]] = {
+      ME.tailRecM[List[String], List[String]](List.empty[String]) { names: List[String] =>
+        for {
+          participant <- readParticipant()
+        } yield Either.cond(participant === "END", names, participant :: names)
+      }
+    }
     /**
       * TODO #27: Use the helper functions in common.Validations and return a validated
       * instance of AddExpenseData. The validations to perform are:
@@ -95,7 +106,12 @@ object AddExpenseCommand extends Command {
         payer: String,
         amount: String,
         participants: List[String]
-    ): IsValid[AddExpenseData] = ???
+    ): IsValid[AddExpenseData] = {
+      val v1 = Validations.nonEmptyString(payer)
+      val v2 = Validations.double(amount)
+      val v3 = participants.map(Validations.nonEmptyString).sequence
+      (v1, v2, v3).mapN(AddExpenseData)
+    }
 
     def readData(): AppOp[AddExpenseData] = {
       for {
@@ -116,7 +132,11 @@ object AddExpenseCommand extends Command {
       *
       * Hint: Use ME.fromOption
       */
-    def findPerson(name: String): AppOp[Person] = ???
+    def findPerson(name: String): AppOp[Person] = for {
+      env <- readEnv
+      maybePerson <- env.personService.findByName(name).toAppOp
+      person <- ME.fromOption(maybePerson, "Person not found")
+    } yield person
 
     for {
       env          <- readEnv
@@ -159,7 +179,12 @@ case object AddPersonCommand extends Command {
       *
       * Upon successful completion, return the message 'Person created successfully'.
       */
-    ???
+    for {
+      env <- readEnv
+      data <- readData()
+      person <- Person.create(data.name).toAppOp
+      _ <- env.personService.addPerson(person).toAppOp
+    } yield "Person created successfully"
   }
 }
 
